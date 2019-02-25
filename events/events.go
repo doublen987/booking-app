@@ -93,7 +93,7 @@ func (eh *eventServiceHandler) newEventHandler(w http.ResponseWriter, r *http.Re
 	fmt.Fprint(w, `{"id":%d}`, id)
 }
 
-func ServeAPI(endpoint string, databaseHandler persistence.DatabaseHandler) error {
+func ServeAPI(endpoint string, tlsendpoint string, databaseHandler persistence.DatabaseHandler) (chan error, chan error) {
 	//With this we get a router object called r, to help  us define our routes and link them
 	//with actions to execute:
 	r := mux.NewRouter()
@@ -113,7 +113,22 @@ func ServeAPI(endpoint string, databaseHandler persistence.DatabaseHandler) erro
 	//Here we implement the creation of a new event (/events):
 	eventsrouter.Methods("POST").Path("").HandlerFunc(handler.newEventHandler)
 
-	return http.ListenAndServe(endpoint, r)
+	//We use go channels to handle error correcting
+	httpErrChan := make(chan error)
+	httpIsErrChan := make(chan error)
+
+	//To convert the web server from the preceding chapter from HTTP to HTTPS, we will need 
+	//to perform one simple change, instead of calling the http.ListenAndServe() function, we'll
+	//utilize instead another function called http.ListenAndServeTLS(). The two extra arguments
+	//are the digital certificate filename and the private key filename.
+	
+	//We want for the user to both be able to connect via http and https and so we use both
+	//ListenAndServe() and ListenAndServeTLS, but because they are both blocking functions, one
+	//cannot be listening while the other is listening so we have to make separate goroutins for them.
+	go func() { httpIsErrChan <- http.ListenAndServeTLS(tlsendpoint, "cert.pem", "key.pem", r) }()
+	go func() { httpErrChan <- http.ListenAndServe(endpoint, r)}()
+
+	return httpErrChan, httpIsErrChan
 }
 
 func main() {
@@ -123,5 +138,11 @@ func main() {
 	config, _ := configuration.ExtractConfiguration(*confPath)
 	fmt.Println("Connecting to database")
 	dbhandler, _ := dblayer.NewPersistenceLayer(config.Databasetype, config.DBConnection)
-	log.Fatal(ServeAPI(config.RestfulEndpoint, dbhandler))
+	httpErrChan, httpIsErrChan := ServeAPI(config.RestfulEndpoint, config.RestfulTLSEndpoint, dbhandler)
+	select {
+	case err := <-httpErrChan:
+		log.Fatal("HTTP Error: ", err)
+	case err := <-httpIsErrChan:
+		log.Fatal("HTTPS Error: ", err)
+	}
 }
