@@ -1,26 +1,35 @@
 package main
 
 import (
-	"net/http"
+	"encoding/hex"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
-	"encoding/json"
-	"encoding/hex"
+	"net/http"
 	"strings"
-	"github.com/doublen987/web_dev/MyEvents/events/lib/persistence"
+	"time"
+
+	"github.com/doublen987/web_dev/MyEvents/contracts"
+	"github.com/doublen987/web_dev/MyEvents/events/listener"
+	"github.com/doublen987/web_dev/MyEvents/lib/configuration"
+	"github.com/doublen987/web_dev/MyEvents/lib/msgqueue"
+	msgqueue_amqp "github.com/doublen987/web_dev/MyEvents/lib/msgqueue/amqp"
+	"github.com/doublen987/web_dev/MyEvents/lib/persistence"
+	"github.com/doublen987/web_dev/MyEvents/lib/persistence/dblayer"
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"github.com/doublen987/web_dev/MyEvents/events/lib/persistence/dblayer"
-	"github.com/doublen987/web_dev/MyEvents/events/lib/configuration"
 )
 
 type eventServiceHandler struct {
-	dbhandler persistence.DatabaseHandler
+	dbhandler    persistence.DatabaseHandler
+	eventEmitter msgqueue.EventEmitter
 }
 
-func newEventHandler(databaseHandler persistence.DatabaseHandler) *eventServiceHandler {
+func newEventHandler(databaseHandler persistence.DatabaseHandler, eventEmitter msgqueue.EventEmitter) *eventServiceHandler {
 	return &eventServiceHandler{
-		dbhandler: databaseHandler,
+		dbhandler:    databaseHandler,
+		eventEmitter: eventEmitter,
 	}
 }
 
@@ -49,8 +58,11 @@ func (eh *eventServiceHandler) findEventHandler(w http.ResponseWriter, r *http.R
 		event, err = eh.dbhandler.FindEventByName(searchkey)
 	case "id":
 		id, err := hex.DecodeString(searchkey)
-		if err != nil {
+		if err == nil {
 			event, err = eh.dbhandler.FindEvent(id)
+			fmt.Println(event)
+		} else {
+			fmt.Println(err)
 		}
 	}
 	if err != nil {
@@ -90,22 +102,36 @@ func (eh *eventServiceHandler) newEventHandler(w http.ResponseWriter, r *http.Re
 		fmt.Fprintf(w, `{"error": "error occured while persisting event %d %s"}`, id, err)
 		return
 	}
-	fmt.Fprint(w, `{"id":%d}`, id)
+	msg := contracts.EventCreatedEvent{
+		ID:         hex.EncodeToString(id),
+		Name:       event.Name,
+		LocationID: string(event.Location.ID),
+		Start:      time.Unix(event.StartDate, 0),
+		End:        time.Unix(event.EndDate, 0),
+	}
+	eh.eventEmitter.Emit(&msg)
+
+	w.Header().Set("Content-Type", "application/json;charset=utf8")
+
+	w.WriteHeader(201)
+	json.NewEncoder(w).Encode(&event)
 }
 
-func ServeAPI(endpoint string, tlsendpoint string, databaseHandler persistence.DatabaseHandler) (chan error, chan error) {
+func ServeAPI(endpoint string, tlsendpoint string, databaseHandler persistence.DatabaseHandler, eventEmitter msgqueue.EventEmitter) (chan error, chan error) {
 	//With this we get a router object called r, to help  us define our routes and link them
 	//with actions to execute:
 	r := mux.NewRouter()
-	//A subrouter is basically an object that will in charge of any incoming HTTP request 
-	//directed towards a relative URL that starts with /events. This code makes use of the 
-	//router object we created earlier, then calls the PathPrefix method, which is used to 
+	//A subrouter is basically an object that will in charge of any incoming HTTP request
+	//directed towards a relative URL that starts with /events. This code makes use of the
+	//router object we created earlier, then calls the PathPrefix method, which is used to
 	//capture any URL path that starts with "/events". The new router is called eventsrouter.
 	//The eventsrouter can be used to define what to do with the rest of the URLs that share
 	//the /events prefix.
+
+	handler := newEventHandler(databaseHandler, eventEmitter)
+
 	eventsrouter := r.PathPrefix("/events").Subrouter()
 
-	handler := newEventHandler(databaseHandler) 
 	//Here we implement the search functionality by id(/events/id/3434) or name(/events/name/jazz_concert).
 	eventsrouter.Methods("GET").Path("/{SearchCriteria}/{search}").HandlerFunc(handler.findEventHandler)
 	//Here we implement the retrival of all events at once:
@@ -117,28 +143,72 @@ func ServeAPI(endpoint string, tlsendpoint string, databaseHandler persistence.D
 	httpErrChan := make(chan error)
 	httpIsErrChan := make(chan error)
 
-	//To convert the web server from the preceding chapter from HTTP to HTTPS, we will need 
+	//To convert the web server from the preceding chapter from HTTP to HTTPS, we will need
 	//to perform one simple change, instead of calling the http.ListenAndServe() function, we'll
 	//utilize instead another function called http.ListenAndServeTLS(). The two extra arguments
 	//are the digital certificate filename and the private key filename.
-	
+
 	//We want for the user to both be able to connect via http and https and so we use both
 	//ListenAndServe() and ListenAndServeTLS, but because they are both blocking functions, one
 	//cannot be listening while the other is listening so we have to make separate goroutins for them.
-	go func() { httpIsErrChan <- http.ListenAndServeTLS(tlsendpoint, "cert.pem", "key.pem", r) }()
-	go func() { httpErrChan <- http.ListenAndServe(endpoint, r)}()
+	server := handlers.CORS()(r)
+	go func() { httpIsErrChan <- http.ListenAndServeTLS(tlsendpoint, "cert.pem", "key.pem", server) }()
+	go func() { httpErrChan <- http.ListenAndServe(endpoint, server) }()
 
 	return httpErrChan, httpIsErrChan
 }
 
+//$ docker network create myevents
+//$ docker image build -t myevents/eventservice .
+//$ docker image build -t myevents/bookingservice .
+//$ docker container run -d --name rabbitmq --network myevents rabbitmq:3-management
+//$ docker container run -d --name events-db --network myevents mongo
+//$ docker container run -d --name bookings-db --network myevents mongo
+//$ docker container run --name events --network myevents -e AMQP_URL=amqp://guest:guest@rabbitmq:5672/ -e DB_URL=mongodb://events-db/events -p 8181:8181 myevents/eventservice
+//$ docker container run --name bookings --network myevents -e AMQP_URL=amqp://guest:guest@rabbitmq:5672/ -e DB_URL=mongodb://bookings-db/bookings -p 8282:8181 myevents/bookingservice
+
 func main() {
-	confPath := flag.String("conf", `.\configuration\config.json`, "flag to set the path to the configuration json file")
+	confPath := flag.String("conf", `./events-config.json`, "flag to set the path to the configuration json file")
 	flag.Parse()
 	//extract configuration
 	config, _ := configuration.ExtractConfiguration(*confPath)
+	fmt.Println("Connecting to the AMQP message broker")
+
 	fmt.Println("Connecting to database")
-	dbhandler, _ := dblayer.NewPersistenceLayer(config.Databasetype, config.DBConnection)
-	httpErrChan, httpIsErrChan := ServeAPI(config.RestfulEndpoint, config.RestfulTLSEndpoint, dbhandler)
+	configMap := make(map[string]interface{})
+	configMap["connection"] = config.DBConnection
+	configMap["region"] = config.AWSRegion
+	dbhandler, err := dblayer.NewPersistenceLayer(config.Databasetype, configMap)
+	if err != nil {
+		fmt.Printf("Error: %s\n", err)
+	} else {
+		fmt.Println("Connected to the database")
+	}
+
+	// conn, err := amqp.Dial(config.AMQPMessageBroker)
+	// if err != nil {
+	// 	panic(err)
+	// } else {
+	// 	fmt.Println("Connected to the AMQP message broker")
+	// }
+
+	conn2 := msgqueue_amqp.NewAMQPConnection(config.AMQPMessageBroker)
+
+	eventEmitter, err := msgqueue_amqp.NewAMQPEventEmitter(conn2, "myevents")
+	if err != nil {
+		fmt.Printf("Error: %s\n", err)
+	}
+	eventListener, err := msgqueue_amqp.NewAMQPEventListener(conn2, "myevents", "events")
+	if err != nil {
+		fmt.Printf("Error: %s\n", err)
+	}
+
+	processor := &listener.EventProcessor{eventListener, dbhandler}
+	go processor.ProcessEvents()
+
+	httpErrChan, httpIsErrChan := ServeAPI(config.RestfulEndpoint, config.RestfulTLSEndpoint, dbhandler, eventEmitter)
+	fmt.Printf("Started listening for http connections on: %s\n", config.RestfulEndpoint)
+
 	select {
 	case err := <-httpErrChan:
 		log.Fatal("HTTP Error: ", err)
