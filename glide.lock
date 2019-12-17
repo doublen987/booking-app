@@ -1,0 +1,152 @@
+hash: 8e2166070604590ce3bea0561e5c0559dd39ac3c7e800369cfbe39fad7aee870
+updated: 2019-12-17T19:19:14.362288658+01:00
+imports:
+- name: github.com/aws/aws-sdk-go
+  version: 547e50a7858bd6ad310bdf99cb5d40599dc350fc
+  subpackages:
+  - aws
+  - aws/awserr
+  - aws/awsutil
+  - aws/client
+  - aws/client/metadata
+  - aws/corehandlers
+  - aws/credentials
+  - aws/credentials/ec2rolecreds
+  - aws/credentials/endpointcreds
+  - aws/credentials/processcreds
+  - aws/credentials/stscreds
+  - aws/crr
+  - aws/csm
+  - aws/defaults
+  - aws/ec2metadata
+  - aws/endpoints
+  - aws/request
+  - aws/session
+  - aws/signer/v4
+  - internal/ini
+  - internal/sdkio
+  - internal/sdkmath
+  - internal/sdkrand
+  - internal/sdkuri
+  - internal/shareddefaults
+  - private/protocol
+  - private/protocol/json/jsonutil
+  - private/protocol/jsonrpc
+  - private/protocol/query
+  - private/protocol/query/queryutil
+  - private/protocol/rest
+  - private/protocol/xml/xmlutil
+  - service/dynamodb
+  - service/dynamodb/dynamodbattribute
+  - service/sqs
+  - service/sts
+  - service/sts/stsiface
+- name: github.com/davecgh/go-spew
+  version: d8f796af33cc11cb798c1aaeb27a4ebc5099927d
+  subpackages:
+  - spew
+- name: github.com/eapache/go-resiliency
+  version: b98ce2825f7276cc41027348986a241ef5d62fd8
+  subpackages:
+  - breaker
+- name: github.com/eapache/go-xerial-snappy
+  version: 776d5712da21bc4762676d614db1d8a64f4238b0
+- name: github.com/eapache/queue
+  version: 093482f3f8ce946c05bcba64badd2c82369e084d
+- name: github.com/golang/snappy
+  version: ff6b7dc882cf4cfba7ee0b9f7dcc1ac096c554aa
+- name: github.com/gorilla/handlers
+  version: 8a3748addc242fc560bd6d4ff28b0374c010b1b4
+- name: github.com/gorilla/mux
+  version: 00bdffe0f3c77e27d2cf6f5c70232a2d3e4d9c15
+- name: github.com/hashicorp/go-uuid
+  version: f32f5fe8d6a86bfd2a4f58998002f7b0b91cf78f
+- name: github.com/jcmturner/gofork
+  version: dc7c13fece037a4a36e2b3c69db4991498d30692
+  subpackages:
+  - encoding/asn1
+  - x/crypto/pbkdf2
+- name: github.com/jmespath/go-jmespath
+  version: c2b33e8439af944379acbdd9c3a5fe0bc44bd8a5
+- name: github.com/klauspost/compress
+  version: c81f2331a6840380019e5d3a3e08064043c22280
+  subpackages:
+  - fse
+  - huff0
+  - snappy
+  - zstd
+  - zstd/internal/xxhash
+- name: github.com/mitchellh/mapstructure
+  version: 3536a929edddb9a5b34bd6861dc4a9647cb459fe
+- name: github.com/pierrec/lz4
+  version: 9085dacd1e1eca033047a5514195779360363ced
+  subpackages:
+  - internal/xxh32
+- name: github.com/rcrowley/go-metrics
+  version: cac0b30c2563378d434b5af411844adff8e32960
+- name: github.com/satori/go.uuid
+  version: f58768cc1a7a7e77a3bd49e98cdd21419399b6a3
+- name: github.com/Shopify/sarama
+  version: 675b0b1ff204c259877004140a540d6adf38db17
+- name: github.com/streadway/amqp
+  version: edfb9018d2714e4ec54dbaba37dbfef2bdadf0e4
+- name: golang.org/x/crypto
+  version: e9b2fee46413994441b28dfca259d911d963dfed
+  subpackages:
+  - md4
+  - pbkdf2
+- name: golang.org/x/net
+  version: c0dbc17a35534bf2e581d7a942408dc936316da4
+  subpackages:
+  - internal/socks
+  - proxy
+- name: gopkg.in/jcmturner/aescts.v1
+  version: f6abebb3171c4c1b1fea279cb7c7325020a26290
+- name: gopkg.in/jcmturner/dnsutils.v1
+  version: 13eeb8d49ffb74d7a75784c35e4d900607a3943c
+- name: gopkg.in/jcmturner/gokrb5.v7
+  version: 363118e62befa8a14ff01031c025026077fe5d6d
+  subpackages:
+  - asn1tools
+  - client
+  - config
+  - credentials
+  - crypto
+  - crypto/common
+  - crypto/etype
+  - crypto/rfc3961
+  - crypto/rfc3962
+  - crypto/rfc4757
+  - crypto/rfc8009
+  - gssapi
+  - iana
+  - iana/addrtype
+  - iana/adtype
+  - iana/asnAppTag
+  - iana/chksumtype
+  - iana/errorcode
+  - iana/etypeID
+  - iana/flags
+  - iana/keyusage
+  - iana/msgtype
+  - iana/nametype
+  - iana/patype
+  - kadmin
+  - keytab
+  - krberror
+  - messages
+  - pac
+  - types
+- name: gopkg.in/jcmturner/rpc.v1
+  version: 99a8ce2fbf8b8087b6ed12a37c61b10f04070043
+  subpackages:
+  - mstypes
+  - ndr
+- name: gopkg.in/mgo.v2
+  version: a6b53ec6cb22a3699387a57a161566f9402ee85b
+  subpackages:
+  - bson
+  - internal/json
+  - internal/sasl
+  - internal/scram
+testImports: []

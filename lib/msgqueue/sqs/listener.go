@@ -7,7 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sqs"
-	"github.com/doublen987/Projects/Bubblewrap/server/lib/msgqueue"
+	"github.com/doublen987/web_dev/MyEvents/lib/msgqueue"
 )
 
 type SQSListener struct {
